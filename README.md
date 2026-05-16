@@ -1,24 +1,24 @@
 # uploader001
 
-Java 17 / Javalin 製のシンプルなファイルアップロードマイクロサービスです。  
-n8n などのワークフローツールから画像をアップロードし、URLで取得・配信するために作りました。
+A simple file upload microservice built with Java 17 and Javalin.  
+Designed for use with workflow tools like n8n to upload images and serve them via URL.
 
-## 概要
+## Overview
 
-- バイナリ（画像）を POST するとMD5ハッシュ名で保存し、URLを返す
-- 保存したファイルを GET で画像として配信する
-- SSL はリバースプロキシ（Nginx 等）側で処理する想定
-- 認証もリバースプロキシ側の Basic 認証で対応
+- POST binary (image) data → saved with MD5 hash filename → returns URL
+- GET saved files served as images
+- SSL is handled by a reverse proxy (e.g. Nginx)
+- Authentication is handled by Basic Auth on the reverse proxy
 
-## 要件
+## Requirements
 
-- Java 17 以上
-- Maven 3.x（ビルド時のみ）
-- 設定ファイルで指定したディレクトリへの書き込み権限
+- Java 17+
+- Maven 3.x (build only)
+- Write permission to the directory specified in the config file
 
-## 設定
+## Configuration
 
-起動ディレクトリに `uploader001.properties` を作成します。
+Create `uploader001.properties` in the working directory:
 
 ```bash
 cp uploader001.properties.example uploader001.properties
@@ -30,35 +30,35 @@ upload.dir=/var/uploads/
 base.url=https://your-domain.com/your-path/
 ```
 
-| キー | 説明 |
+| Key | Description |
 |---|---|
-| port | リッスンするポート番号 |
-| upload.dir | ファイルの保存先ディレクトリ |
-| base.url | レスポンスで返すURLのベース（末尾 `/` 必須） |
+| port | Port number to listen on |
+| upload.dir | Directory to store uploaded files |
+| base.url | Base URL prefix for returned file URLs (must end with `/`) |
 
-`uploader001.properties` は `.gitignore` に含まれています。リポジトリにはコミットしないでください。
+`uploader001.properties` is listed in `.gitignore`. Do not commit it to the repository.
 
-## ビルド
+## Build
 
 ```bash
 mvn package
 ```
 
-`target/uploader001-1.0.0.jar` が生成されます（依存関係込みのfat jar）。
+Produces `target/uploader001-1.0.0.jar` (fat jar with all dependencies included).
 
-## 起動
+## Run
 
 ```bash
 java -jar target/uploader001-1.0.0.jar
 ```
 
-設定ファイルはカレントディレクトリから読み込みます。
+The properties file is loaded from the current working directory.
 
 ## API
 
 ### `GET /health`
 
-死活確認。
+Health check.
 
 ```
 200 OK
@@ -69,27 +69,27 @@ OK
 
 ### `POST /upload`
 
-バイナリファイルをアップロードします。  
-`Content-Type` から拡張子を判定し、MD5ハッシュ名で保存します。
+Upload a binary file.  
+The file extension is determined from the `Content-Type` header. The file is saved using its MD5 hash as the filename.
 
-**リクエスト**
+**Request**
 
 ```
 POST /upload
 Content-Type: image/png
-Body: <バイナリ>
+Body: <binary>
 ```
 
-**レスポンス**
+**Response**
 
 ```
 200 OK
 https://your-domain.com/your-path/d41d8cd98f00b204e9800998ecf8427e.png
 ```
 
-対応している Content-Type:
+Supported Content-Types:
 
-| Content-Type | 拡張子 |
+| Content-Type | Extension |
 |---|---|
 | image/jpeg | .jpg |
 | image/png | .png |
@@ -102,7 +102,7 @@ https://your-domain.com/your-path/d41d8cd98f00b204e9800998ecf8427e.png
 
 ### `GET /files/{filename}`
 
-保存済みのファイルを配信します。
+Serve a saved file.
 
 ```
 GET /files/d41d8cd98f00b204e9800998ecf8427e.png
@@ -111,16 +111,16 @@ GET /files/d41d8cd98f00b204e9800998ecf8427e.png
 ```
 200 OK
 Content-Type: image/png
-Body: <バイナリ>
+Body: <binary>
 ```
 
-ファイルが存在しない場合は `404`、ファイル名が不正な場合は `400` を返します。
+Returns `404` if the file does not exist, `400` if the filename is invalid.
 
 ---
 
 ### `GET /list`
 
-保存済みの全ファイルのURLを1行ずつ返します。
+Returns URLs of all saved files, one per line.
 
 ```
 GET /list
@@ -136,40 +136,40 @@ https://your-domain.com/your-path/def456.jpg
 
 ### `GET /stop`
 
-サーバーを停止します。
+Gracefully stops the server.
 
 ```
 200 OK
 Stopping
 ```
 
-## デプロイ
+## Deployment
 
-### 1. ディレクトリ・設定ファイルの準備
+### 1. Prepare directory and config
 
 ```bash
 sudo mkdir -p /var/uploads
 sudo chown youruser:youruser /var/uploads
 
 cp uploader001.properties.example uploader001.properties
-# uploader001.properties を編集して設定値を入力
+# Edit uploader001.properties with your settings
 ```
 
-### 2. jar を配置
+### 2. Copy files to server
 
 ```bash
 scp target/uploader001-1.0.0.jar yourserver:/opt/uploader001/
 scp uploader001.properties yourserver:/opt/uploader001/
 ```
 
-### 3. 起動
+### 3. Start
 
 ```bash
 cd /opt/uploader001
 java -jar uploader001-1.0.0.jar
 ```
 
-### systemd で自動起動する場合
+### systemd (optional)
 
 `/etc/systemd/system/uploader001.service`:
 
@@ -193,7 +193,7 @@ sudo systemctl enable uploader001
 sudo systemctl start uploader001
 ```
 
-## Nginx リバースプロキシ設定例
+## Nginx Reverse Proxy Example
 
 ```nginx
 location /your-path/ {
@@ -204,7 +204,7 @@ location /your-path/ {
 }
 ```
 
-Basic 認証ユーザーの作成:
+Creating a Basic Auth user:
 
 ```bash
 sudo apt install apache2-utils
